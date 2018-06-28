@@ -85,41 +85,53 @@ Write-Host "	3 - Remove old users (Archived over one year)"
 $Option = Read-Host "	Choice"
 if ($Option){
 	if ($Option -eq "1"){
+		
 		$type = Read-Host "Type (Staff (s), Year (#), Grad (g) etc " 
 		$firstName = Read-Host "First Name "
 		$lastName = Read-Host "Last Name "
 		$studentNumber = Read-Host "Student Number "
 		$tempName = $firstName + $lastName
+		
 		Check-AddRegUsers -toCheck $tempName
 		$userName = $checkedName
+		
 		if ($userName -ne $tempName){
 			Write-Host $tempName" is now "$userName
 		}
+		
+		Add-User
 	}
 	if ($Option -eq "2"){
+		
 		$numFiles = 0
 		$files = Get-ChildItem -Path *.csv
+		
+		Write-Host "Please choose a file, or enter the full path of the file you would like to load."
+		Write-Host "If there are any spaces in the path please use quotation marks around the entire path."
+		
 		if ($files){
-			Write-Host "Please choose a file, or enter the full path of the file you would like to load."
-			Write-Host "If there are any spaces in the path please use quotation marks around the entire path."
 			foreach ($file in $files){
 				Write-Host "["$numFiles"] - "$file
 				$numFiles++
 			}
-			$opt = Read-Host
-			if ($opt -In 0..$numFiles){
-				$content = Import-CSV $files[$opt]
-			}else{
-				if (Test-Path -Path $opt){
-					$content = Import-CSV $opt
-				}
-			}
-			if ($content){
-				Load-FromFile
-			}
-			Move-ToArchive
 		}
+		$opt = Read-Host
+		
+		if ($opt -In 0..$numFiles){
+			$content = Import-CSV $files[$opt]
+		}else{
+			if (Test-Path -Path $opt){
+				$content = Import-CSV $opt
+			}
+		}
+		
+		if ($content){
+			Load-FromFile
+		}
+		
+		Move-ToArchive
 	}
+	
 	if ($Option -eq "3"){
 		$type = Read-Host ""
 		$firstName = Read-Host ""
@@ -127,6 +139,3 @@ if ($Option){
 		$studentNumber = Read-Host ""
 	}
 }
-
-
-
