@@ -1,4 +1,3 @@
-#Carleton U Creation Script
 clear
 $type = ""
 $firstName = ""
@@ -65,9 +64,8 @@ function Move-ToArchive{
 			if ($exist -eq $person.LoginName){ @account = "fluff data" }
 		}
 		
-		if($account){
-			Write-Host "account found"
-		} else {
+		if ($account){ Write-Host "account found" } 
+		else { 
 			Write-Host "account not found, moving to archive OU"
 			#move to NoLogin OU
 		}
@@ -77,11 +75,14 @@ function Move-ToArchive{
 Import-Module ActiveDirectory
 #$users = Get-ADUser -Filter *
 $users = Get-ADUser -Filter * | Select-Object SamAccountName
+
 Write-Host "Please enter one of the following options:"
 Write-Host "	1 - Add Regular User"
 Write-Host "	2 - Add Users From File"
 Write-Host "	3 - Remove old users (Archived over one year)"
+
 $Option = Read-Host "	Choice"
+
 if ($Option){
 	if ($Option -eq "1"){
 		
@@ -94,9 +95,7 @@ if ($Option){
 		Check-AddRegUsers -toCheck $tempName
 		$userName = $checkedName
 		
-		if ($userName -ne $tempName){
-			Write-Host $tempName" is now "$userName
-		}
+		if ($userName -ne $tempName){ Write-Host $tempName" is now "$userName }
 		
 		Add-User
 	}
@@ -114,19 +113,13 @@ if ($Option){
 				$numFiles++
 			}
 		}
+		
 		$opt = Read-Host
 		
-		if ($opt -In 0..$numFiles){
-			$content = Import-CSV $files[$opt]
-		}else{
-			if (Test-Path -Path $opt){
-				$content = Import-CSV $opt
-			}
-		}
+		if ($opt -In 0..$numFiles){ $content = Import-CSV $files[$opt] }
+		else { if (Test-Path -Path $opt){ $content = Import-CSV $opt } }
 		
-		if ($content){
-			Load-FromFile
-		}
+		if ($content){ Load-FromFile }
 		
 		Move-ToArchive
 	}
