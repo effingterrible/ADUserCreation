@@ -4,7 +4,6 @@ $type = ""
 $firstName = ""
 $lastName = ""
 $studentNumber = ""
-$loginName = $firstName+$lastName
 $users = ""
 $numUser = 0
 $checkedName = ""
