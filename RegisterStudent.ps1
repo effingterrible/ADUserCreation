@@ -10,31 +10,32 @@ $tempName = ""
 $userName = ""
 $securePassword = ""
 $content = ""
+$alias = ""
 
 function Check-AddRegUsers {
 param($toCheck)
 	
 	foreach ($user in $users){
-		Write-Host "Checking"$toCheck" against" $user
+		#Write-Host "Checking"$toCheck" against" $user
 		if ($user -eq $toCheck){
 			$numUser++
 			$inc = $numUser.ToString()
 			$checkedName = $firstName + $lastName + $inc
 			Check-AddRegUsers -toCheck $checkedName
-		}
-	}
+		} 
+	} 
 }
 
 function Add-User{
 
 	$DisplayName = $firstName + ' ' + $lastName
-	$alias=$username+"@DOMAIN.com"
+	$alias=$userName + "@TheHeart.local"
 
-	if ($type -In 1..4){ $OuPath = "OU=Users,OU=UnderGrad,DC=DOMAIN,DC=com"	}
-	if ($type -eq "g"){	$OuPath = "OU=Users,OU=Graduate,DC=DOMAIN,DC=com" }
-	if ($type -eq "s"){	$OuPath = "OU=Users,OU=Staff,DC=DOMAIN,DC=com" }
-
-	New-ADUser -samaccountname $userName -Givenname $firstName -Surname $lastName -Name $DisplayName -DisplayName $DisplayName -Path $OuPath -Accountpassword $securePassword -userprincipalname $alias -PasswordNeverExpires 1 -enabled $true
+	if ($type -In 1..4){ $OuPath = "OU=UnderGrad,OU=UserAccounts,DC=TheHeart,DC=local"	}
+	if ($type -eq "g"){	$OuPath = "OU=Graduate,OU=UserAccounts,DC=TheHeart,DC=local" }
+	if ($type -eq "s"){	$OuPath = "OU=Staff,OU=UserAccounts,DC=TheHeart,DC=local" }
+	
+	New-ADUser -SamAccountName $tempName -Givenname $firstName -Surname $lastName -Name $DisplayName -DisplayName $DisplayName -Path $OuPath -Accountpassword $securePassword -userprincipalname $alias -PasswordNeverExpires 1 -enabled $true
 }
 
 function Load-FromFile{
@@ -47,8 +48,11 @@ function Load-FromFile{
 		$studentNumber = $item.StudentNumber
 		$tempName = $item.LoginName
 		Check-AddRegUsers -toCheck $tempName
-		$userName = $checkedName
+		if (!$checkedName){
+			$userName = $tempName
+		}
 		$securePassword = $studentNumber | ConvertTo-Securestring -AsPlainText -Force
+
 		Add-User
 	}
 }
@@ -61,12 +65,12 @@ function Move-ToArchive{
 		
 		foreach ($person in $content){
 		
-			if ($exist -eq $person.LoginName){ @account = "fluff data" }
+			if ($exist -eq $person.LoginName){ $account = "fluff data" }
 		}
 		
-		if ($account){ Write-Host "account found" } 
+		if ($account){ Write-Host $exist" account found" } 
 		else { 
-			Write-Host "account not found, moving to archive OU"
+			Write-Host $exist" account not found, moving to archive OU"
 			#move to NoLogin OU
 		}
 	}
@@ -74,7 +78,7 @@ function Move-ToArchive{
 
 Import-Module ActiveDirectory
 #$users = Get-ADUser -Filter *
-$users = Get-ADUser -Filter * | Select-Object SamAccountName
+$users = Get-ADUser -SearchBase "OU=UserAccounts,DC=TheHeart,DC=local" -Filter * | Select-Object SamAccountName
 
 Write-Host "Please enter one of the following options:"
 Write-Host "	1 - Add Regular User"
@@ -93,7 +97,9 @@ if ($Option){
 		$tempName = $firstName + $lastName
 		
 		Check-AddRegUsers -toCheck $tempName
-		$userName = $checkedName
+		if (!$checkedName){
+			$userName = $tempName
+		}
 		
 		if ($userName -ne $tempName){ Write-Host $tempName" is now "$userName }
 		
