@@ -1,4 +1,4 @@
-clear
+#clear
 $type = ""
 $firstName = ""
 $lastName = ""
@@ -16,14 +16,14 @@ function Check-AddRegUsers {
 param($toCheck)
 	
 	foreach ($user in $users){
-		#Write-Host "Checking"$toCheck" against" $user
+
 		if ($user -eq $toCheck){
 			$numUser++
 			$inc = $numUser.ToString()
 			$checkedName = $firstName + $lastName + $inc
 			Check-AddRegUsers -toCheck $checkedName
 		} 
-	} 
+	}	 
 }
 
 function Add-User{
@@ -63,23 +63,26 @@ function Move-ToArchive{
 	
 		$exist = $user.SamAccountName
 		
-		foreach ($person in $content){
-		
-			if ($exist -eq $person.LoginName){ $account = "fluff data" }
+		$content | ForEach-Object { 
+			if ($_.LoginName -eq $exist) {
+				$account = "fluff data"
+				continue
+			}else { $account = "" } 
 		}
-		
-		if ($account){ Write-Host $exist" account found" } 
+		if ($account){ } 
 		else { 
-			Write-Host $exist" account not found, moving to archive OU"
-			#move to NoLogin OU
+
+			Move-ADObject -Identity $user.ObjectGUID -TargetPath "OU=NoLogin,OU=UserAccounts,DC=TheHeart,DC=local"
+			Disable-ADAccount $user.ObjectGUID
 		}
 	}
 }
 
 Import-Module ActiveDirectory
-#$users = Get-ADUser -Filter *
-$users = Get-ADUser -SearchBase "OU=UserAccounts,DC=TheHeart,DC=local" -Filter * | Select-Object SamAccountName
 
+$users = Get-ADUser -SearchBase "OU=UnderGrad,OU=UserAccounts,DC=TheHeart,DC=local" -Filter *
+$users += Get-ADUser -SearchBase "OU=Graduate,OU=UserAccounts,DC=TheHeart,DC=local" -Filter *
+$users += Get-ADUser -SearchBase "OU=Staff,OU=UserAccounts,DC=TheHeart,DC=local" -Filter *
 Write-Host "Please enter one of the following options:"
 Write-Host "	1 - Add Regular User"
 Write-Host "	2 - Add Users From File"
@@ -131,9 +134,17 @@ if ($Option){
 	}
 	
 	if ($Option -eq "3"){
-		$type = Read-Host ""
-		$firstName = Read-Host ""
-		$lastName = Read-Host ""
-		$studentNumber = Read-Host ""
+		$inactives = Get-ADUser -SearchBase "OU=NoLogin,OU=UserAccounts,DC=TheHeart,DC=local" -Filter * -Properties "LastLogonDate"  
+		$Date = Get-Date
+		Foreach ($inactive in $inactives){
+		If ($inactive.Enabled -eq $False){
+			If ($inactive.LastLogonDate -ne $Null){
+				If ((($inactive.LastLogonDate).Subtract($date) | Select -ExpandProperty Days) -le "-365"){
+					Set-ADUser -Identity $inactive -Description "Disabled on $Date for inactivity."
+					Remove-ADObject -Identity $inactive -Confirm:$False
+				}
+				}
+			}
+		} 
 	}
 }
