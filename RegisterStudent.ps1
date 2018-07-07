@@ -1,4 +1,4 @@
-#clear
+clear
 $type = ""
 $firstName = ""
 $lastName = ""
@@ -14,6 +14,7 @@ $numUser = 0
 $timeStamp = Get-Date -Format FileDateTime
 $currentUser = $env:Username
 $fileName = $currentUser+$timeStamp+".txt"
+$profileDir = "C:\Users\jdadmin\Desktop\GitHub\ADUserCreation\Users\"
 
 #function Check-AddRegUsers {
 #param($toCheck)
@@ -33,23 +34,41 @@ $fileName = $currentUser+$timeStamp+".txt"
 function Add-User{
 
 	$DisplayName = $firstName + ' ' + $lastName
-	$alias=$tempName + "@TheHeart.local"
+	$alias=$userName + "@TheHeart.local"
 
 	if ($type -In 1..4){ $OuPath = "OU=UnderGrad,OU=UserAccounts,DC=TheHeart,DC=local"	}
 	if ($type -eq "g"){	$OuPath = "OU=Graduate,OU=UserAccounts,DC=TheHeart,DC=local" }
 	if ($type -eq "s"){	$OuPath = "OU=Staff,OU=UserAccounts,DC=TheHeart,DC=local" }
 	try {
-		
-		New-ADUser -SamAccountName $tempName -Givenname $firstName -Surname $lastName -Name $DisplayName -DisplayName $DisplayName -Path $OuPath -Accountpassword $securePassword -userprincipalname $alias -PasswordNeverExpires 1 -enabled $true
-		Add-Content $fileName -Value "	Adding user: $tempName"
+		New-Item -Path $profileDir -Name $tempName -ItemType "Directory" | Out-Null
+		$homeDir = $profileDir+$userName
+		New-ADUser -SamAccountName $userName -Givenname $firstName -Surname $lastName -Name $DisplayName -DisplayName $DisplayName -HomeDirectory $homeDir -Path $OuPath -Accountpassword $securePassword -userprincipalname $alias -PasswordNeverExpires 1 -enabled $true
+	
+		Add-Content $fileName -Value "	Adding user: $userName"
 	} catch [Microsoft.ActiveDirectory.Management.ADIdentityAlreadyExistsException]{
-		Add-Content $fileName -Value "	Username already exists: $tempName"
+		Add-Content $fileName -Value "	Username already exists: $userName"
 		Write-Host "$($error[0])"
 	}
 	 catch [Microsoft.ActiveDirectory.Management.ADPasswordComplexityException]{
-		Add-Content $fileName -Value "	Password did not meet complexity requirements for user: $tempName"
+		Add-Content $fileName -Value "	Password did not meet complexity requirements for user: $userName"
 		Write-Host "$($error[0])"
 	}
+
+	$UsersAm = "TheHeart.local\$userName"
+	$InheritanceFlags = [System.Security.AccessControl.InheritanceFlags]::"ContainerInherit", "ObjectInherit" 
+	$PropagationFlags = [System.Security.AccessControl.PropagationFlags]::None
+	$AccessControl =[System.Security.AccessControl.AccessControlType]::Allow
+	$FileSystemAccessRights = [System.Security.AccessControl.FileSystemRights]"FullControl"
+	$accessRule = New-Object System.Security.AccessControl.FileSystemAccessRule($UsersAm, $FileSystemAccessRights, $InheritanceFlags, $PropagationFlags, $AccessControl);
+
+	$currentACL = Get-ACL -path $homeDir
+	$currentACL.SetAccessRule($accessRule)
+	Set-ACL -path $homeDir -AclObject $currentACL
+	$currentACL.SetOwner([System.Security.Principal.NTAccount]$userName)
+	$shareName = $userName+'$'
+	#Create shares
+	#New-SmbShare -Name $shareName -Path $homeDir -FullAccess "TheHeart.local\$userName"
+
 }
 
 function Load-FromFile{
@@ -60,26 +79,13 @@ function Load-FromFile{
 		$lastName = $_.LastName
 		$studentNumber = $_.StudentNumber
 		$tempName = $_.LoginName 
+#		Check-AddRegUsers -toCheck $tempName
+#		if (!$checkedName){
+			$userName = $tempName
+#		}
 		$securePassword = $studentNumber | ConvertTo-Securestring -AsPlainText -Force
 		Add-User
 	}
-
-
-#	foreach ($item in $content){
-		
-#		$type = $item.Level
-#		$firstName = $item.FirstName
-#		$lastName = $item.LastName
-#		$studentNumber = $item.StudentNumber
-#		$tempName = $item.LoginName
-#		Check-AddRegUsers -toCheck $tempName
-#		if (!$checkedName){
-#			$userName = $tempName
-#		}
-#		$securePassword = $studentNumber | ConvertTo-Securestring -AsPlainText -Force
-
-#		Add-User
-#	}
 }
 
 function Move-ToArchive{
@@ -132,7 +138,7 @@ if ($Option){
 		
 #		Check-AddRegUsers -toCheck $tempName
 #		if (!$checkedName){
-#			$userName = $tempName
+			$userName = $tempName
 #		}
 		
 #		if ($userName -ne $tempName){ Write-Host $tempName" is now "$userName }
