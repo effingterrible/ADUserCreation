@@ -193,6 +193,7 @@ if ($Option){
 	}
 	if ($Option -eq "4"){
 		Add-Content $fileName -Value "========= No Action Taken ========="
+		Write-Host "Good-Bye"
 	}
 } else {
 	Write-Host "Good-Bye"
