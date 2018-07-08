@@ -15,6 +15,13 @@ $timeStamp = Get-Date -Format FileDateTime
 $currentUser = $env:Username
 $fileName = $currentUser+$timeStamp+".txt"
 $profileDir = "C:\Users\jdadmin\Desktop\GitHub\ADUserCreation\Users\"
+$OU1 = "OU=UnderGrad,OU=UserAccounts,DC=cee,DC=carleton,DC=ca"
+$OU2 = "OU=Graduate,OU=UserAccounts,DC=cee,DC=carleton,DC=ca"
+$OU3 = "OU=Post-Grad,OU=UserAccounts,DC=cee,DC=carleton,DC=ca"
+$OU4 = "OU=Staff,OU=UserAccounts,DC=cee,DC=carleton,DC=ca"
+$OU5 = "OU=NoLogin,OU=UserAccounts,DC=cee,DC=carleton,DC=ca"
+$domain = "cee.carleton.ca"
+$isNew = $true
 
 #function Check-AddRegUsers {
 #param($toCheck)
@@ -34,40 +41,54 @@ $profileDir = "C:\Users\jdadmin\Desktop\GitHub\ADUserCreation\Users\"
 function Add-User{
 
 	$DisplayName = $firstName + ' ' + $lastName
-	$alias=$userName + "@TheHeart.local"
+	$alias=$userName + "@" + $domain
 
-	if ($type -In 1..4){ $OuPath = "OU=UnderGrad,OU=UserAccounts,DC=TheHeart,DC=local"	}
-	if ($type -eq "g"){	$OuPath = "OU=Graduate,OU=UserAccounts,DC=TheHeart,DC=local" }
-	if ($type -eq "s"){	$OuPath = "OU=Staff,OU=UserAccounts,DC=TheHeart,DC=local" }
+	if ($type -In 1..4){ $OuPath = $OU1	
+		$description = "Year $type Student"
+	}
+	if ($type -eq "g"){	$OuPath = $OU2 
+		$description = "Graduate Student"
+	}
+	if ($type -eq "p"){	$OuPath = $OU3 
+		$description = "Post-Grad"
+	}
+	if ($type -eq "s"){	$OuPath = $OU4 
+		$description = "Staff"
+	}
 	try {
 		New-Item -Path $profileDir -Name $tempName -ItemType "Directory" | Out-Null
 		$homeDir = $profileDir+$userName
-		New-ADUser -SamAccountName $userName -Givenname $firstName -Surname $lastName -Name $DisplayName -DisplayName $DisplayName -HomeDirectory $homeDir -Path $OuPath -Accountpassword $securePassword -userprincipalname $alias -PasswordNeverExpires 1 -enabled $true
+		New-ADUser -SamAccountName $userName -Givenname $firstName -Surname $lastName -Name $DisplayName -DisplayName $DisplayName -HomeDirectory $homeDir -Path $OuPath -Accountpassword $securePassword -Description $description -userprincipalname $alias -PasswordNeverExpires 1 -enabled $true
 	
 		Add-Content $fileName -Value "	Adding user: $userName"
 	} catch [Microsoft.ActiveDirectory.Management.ADIdentityAlreadyExistsException]{
-		Add-Content $fileName -Value "	Username already exists: $userName"
-		Write-Host "$($error[0])"
+		Add-Content $fileName -Value "	Username already exists: $userName updating description"
+		Set-ADUsers -Description $description
+		Move-ADObject -Identity $userName -TargetPath $OuPath
+		$isNew = $false
+#		Write-Host "$($error[0])"
 	}
 	 catch [Microsoft.ActiveDirectory.Management.ADPasswordComplexityException]{
 		Add-Content $fileName -Value "	Password did not meet complexity requirements for user: $userName"
-		Write-Host "$($error[0])"
+#		Write-Host "$($error[0])"
 	}
 
-	$UsersAm = "TheHeart.local\$userName"
-	$InheritanceFlags = [System.Security.AccessControl.InheritanceFlags]::"ContainerInherit", "ObjectInherit" 
-	$PropagationFlags = [System.Security.AccessControl.PropagationFlags]::None
-	$AccessControl =[System.Security.AccessControl.AccessControlType]::Allow
-	$FileSystemAccessRights = [System.Security.AccessControl.FileSystemRights]"FullControl"
-	$accessRule = New-Object System.Security.AccessControl.FileSystemAccessRule($UsersAm, $FileSystemAccessRights, $InheritanceFlags, $PropagationFlags, $AccessControl);
+	if ($isNew){
+		$UsersAm = $domain + "\" + $userName
+		$InheritanceFlags = [System.Security.AccessControl.InheritanceFlags]::"ContainerInherit", "ObjectInherit" 
+		$PropagationFlags = [System.Security.AccessControl.PropagationFlags]::None
+		$AccessControl =[System.Security.AccessControl.AccessControlType]::Allow
+		$FileSystemAccessRights = [System.Security.AccessControl.FileSystemRights]"FullControl"
+		$accessRule = New-Object System.Security.AccessControl.FileSystemAccessRule($UsersAm, $FileSystemAccessRights, $InheritanceFlags, $PropagationFlags, $AccessControl);
 
-	$currentACL = Get-ACL -path $homeDir
-	$currentACL.SetAccessRule($accessRule)
-	Set-ACL -path $homeDir -AclObject $currentACL
-	$currentACL.SetOwner([System.Security.Principal.NTAccount]$userName)
-	$shareName = $userName+'$'
-	#Create shares
-	#New-SmbShare -Name $shareName -Path $homeDir -FullAccess "TheHeart.local\$userName"
+		$currentACL = Get-ACL -path $homeDir
+		$currentACL.SetAccessRule($accessRule)
+		Set-ACL -path $homeDir -AclObject $currentACL
+		$currentACL.SetOwner([System.Security.Principal.NTAccount]$userName)
+		$shareName = $userName+'$'
+		#Create shares
+		#New-SmbShare -Name $shareName -Path $homeDir -FullAccess "cee.local\$userName"
+	}
 
 }
 
@@ -102,19 +123,24 @@ function Move-ToArchive{
 		}
 		if ($account -eq "fluff data"){ Add-Content $fileName -Value "	No users to move" } 
 		else { 
-			Move-ADObject -Identity $user.ObjectGUID -TargetPath "OU=NoLogin,OU=UserAccounts,DC=TheHeart,DC=local"
-			Disable-ADAccount $user.ObjectGUID
-			$temp = $user.SamAccountName
-			Add-Content $fileName -Value "	User:	$temp moved to NoLogin OU"
+			if ($user.DistinguishedName -like "*Staff*"){
+				#Do Nothing
+			} else {
+				Move-ADObject -Identity $user.ObjectGUID -TargetPath $OU5
+				Disable-ADAccount $user.ObjectGUID
+				$temp = $user.SamAccountName
+				Add-Content $fileName -Value "	User:	$temp moved to NoLogin OU"
+			}
 		}
 	}
 }
 
 Import-Module ActiveDirectory
 
-$users = Get-ADUser -SearchBase "OU=UnderGrad,OU=UserAccounts,DC=TheHeart,DC=local" -Filter *
-$users += Get-ADUser -SearchBase "OU=Graduate,OU=UserAccounts,DC=TheHeart,DC=local" -Filter *
-$users += Get-ADUser -SearchBase "OU=Staff,OU=UserAccounts,DC=TheHeart,DC=local" -Filter *
+$users = Get-ADUser -SearchBase $OU1 -Filter *
+$users += Get-ADUser -SearchBase $OU2 -Filter *
+$users += Get-ADUser -SearchBase $OU3 -Filter *
+$users += Get-ADUser -SearchBase $OU4 -Filter *
 Write-Host "Please enter one of the following options:"
 Write-Host "	1 - Add Regular User"
 Write-Host "	2 - Add Users From File"
@@ -177,12 +203,12 @@ if ($Option){
 
 		Add-Content $fileName -Value "========= Removing Archived users over 1 year old ========="
 
-		$inactives = Get-ADUser -SearchBase "OU=NoLogin,OU=UserAccounts,DC=TheHeart,DC=local" -Filter * -Properties "LastLogonDate"  
+		$inactives = Get-ADUser -SearchBase $OU5 -Filter * -Properties "LastLogonDate"  
 		$Date = Get-Date
 		Foreach ($inactive in $inactives){
 		If ($inactive.Enabled -eq $False){
 			If ($inactive.LastLogonDate -ne $Null){
-				If ((($inactive.LastLogonDate).Subtract($date) | Select -ExpandProperty Days) -le "0"){
+				If ((($inactive.LastLogonDate).Subtract($date) | Select -ExpandProperty Days) -le "-540"){
 					Set-ADUser -Identity $inactive -Description "Disabled on $Date for inactivity."
 					Remove-ADObject -Identity $inactive -Confirm:$False
 					Add-Content $fileName -Value "	User $inactive removed"
