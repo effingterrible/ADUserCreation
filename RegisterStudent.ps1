@@ -14,10 +14,10 @@ $numUser = 0
 $timeStamp = Get-Date -Format FileDateTime
 $currentUser = $env:Username
 $fileName = $currentUser+$timeStamp+".txt"
-$profileDir = "C:\Users\jdadmin\Desktop\GitHub\ADUserCreation\Users\"
+$profileDir = "\\cee.carleton.ca\ceeStorage\UserFiles\"
 $OU1 = "OU=UnderGrad,OU=UserAccounts,DC=cee,DC=carleton,DC=ca"
 $OU2 = "OU=Graduate,OU=UserAccounts,DC=cee,DC=carleton,DC=ca"
-$OU3 = "OU=Post-Grad,OU=UserAccounts,DC=cee,DC=carleton,DC=ca"
+$OU3 = "OU=PhD,OU=UserAccounts,DC=cee,DC=carleton,DC=ca"
 $OU4 = "OU=Staff,OU=UserAccounts,DC=cee,DC=carleton,DC=ca"
 $OU5 = "OU=NoLogin,OU=UserAccounts,DC=cee,DC=carleton,DC=ca"
 $domain = "cee.carleton.ca"
@@ -56,7 +56,7 @@ function Add-User{
 		$description = "Staff"
 	}
 	try {
-		New-Item -Path $profileDir -Name $tempName -ItemType "Directory" | Out-Null
+		New-Item -Path $profileDir -Name $userName -ItemType "Directory" | Out-Null
 		$homeDir = $profileDir+$userName
 		New-ADUser -SamAccountName $userName -Givenname $firstName -Surname $lastName -Name $DisplayName -DisplayName $DisplayName -HomeDirectory $homeDir -Path $OuPath -Accountpassword $securePassword -Description $description -userprincipalname $alias -PasswordNeverExpires 1 -enabled $true
 	
@@ -87,7 +87,7 @@ function Add-User{
 		$currentACL.SetOwner([System.Security.Principal.NTAccount]$userName)
 		$shareName = $userName+'$'
 		#Create shares
-		#New-SmbShare -Name $shareName -Path $homeDir -FullAccess "cee.local\$userName"
+		New-SmbShare -Name $shareName -Path $homeDir -FullAccess $domain+"\"+$userName
 	}
 
 }
@@ -100,6 +100,7 @@ function Load-FromFile{
 		$lastName = $_.LastName
 		$studentNumber = $_.StudentNumber
 		$tempName = $_.LoginName 
+		$tempName = $tempName -replace '\s',''
 #		Check-AddRegUsers -toCheck $tempName
 #		if (!$checkedName){
 			$userName = $tempName
@@ -137,15 +138,18 @@ function Move-ToArchive{
 
 Import-Module ActiveDirectory
 
-$users = Get-ADUser -SearchBase $OU1 -Filter *
-$users += Get-ADUser -SearchBase $OU2 -Filter *
-$users += Get-ADUser -SearchBase $OU3 -Filter *
-$users += Get-ADUser -SearchBase $OU4 -Filter *
+$ous = "OU=UnderGrad,OU=UserAccounts,DC=cee,DC=carleton,DC=ca","OU=Graduate,OU=UserAccounts,DC=cee,DC=carleton,DC=ca","OU=PhD,OU=UserAccounts,DC=cee,DC=carleton,DC=ca","OU=Staff,OU=UserAccounts,DC=cee,DC=carleton,DC=ca"
+$users = $ous | ForEach { Get-ADUser -Filter * -SearchBase $_ }
+#$users = Get-ADUser -SearchBase $OU1 -Filter *
+#$users += Get-ADUser -SearchBase $OU2 -Filter *
+#$users += Get-ADUser -SearchBase $OU3 -Filter *
+#$users += Get-ADUser -SearchBase $OU4 -Filter *
 Write-Host "Please enter one of the following options:"
 Write-Host "	1 - Add Regular User"
 Write-Host "	2 - Add Users From File"
-Write-Host "	3 - Remove old users (Archived over one year)"
-Write-Host "	4 - Exit"
+Write-Host "	3 - Add Users From File Without Archiving"
+Write-Host "	4 - Remove old users (Archived over one year)"
+Write-Host "	5 - Exit"
 
 $Option = Read-Host "	Choice"
 
@@ -200,6 +204,33 @@ if ($Option){
 	}
 	
 	if ($Option -eq "3"){
+		
+				Add-Content $fileName -Value "========= Loading users from file without Archiving ========="
+		
+				$numFiles = 0
+				$files = Get-ChildItem -Path *.csv
+				
+				Write-Host "Please choose a file, or enter the full path of the file you would like to load."
+				Write-Host "If there are any spaces in the path please use quotation marks around the entire path."
+				
+				if ($files){
+					foreach ($file in $files){
+						Write-Host "["$numFiles"] - "$file
+						$numFiles++
+					}
+				}
+				
+				$opt = Read-Host
+				
+				if ($opt -In 0..$numFiles){ $content = Import-CSV $files[$opt] }
+				else { if (Test-Path -Path $opt){ $content = Import-CSV $opt } }
+		
+				if ($content){ Load-FromFile }
+				else { Write-Host "Invalid file name" }
+				
+			}
+
+	if ($Option -eq "4"){
 
 		Add-Content $fileName -Value "========= Removing Archived users over 1 year old ========="
 
@@ -217,7 +248,7 @@ if ($Option){
 			}
 		} 
 	}
-	if ($Option -eq "4"){
+	if ($Option -eq "5"){
 		Add-Content $fileName -Value "========= No Action Taken ========="
 		Write-Host "Good-Bye"
 	}
