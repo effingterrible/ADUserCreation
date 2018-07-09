@@ -14,7 +14,7 @@ $numUser = 0
 $timeStamp = Get-Date -Format FileDateTime
 $currentUser = $env:Username
 $fileName = $currentUser+$timeStamp+".txt"
-$profileDir = "\\cee.carleton.ca\ceeStorage\UserFiles\"
+$profileDir = "\\cee.carleton.ca\CeeStorage\"
 $OU1 = "OU=UnderGrad,OU=UserAccounts,DC=cee,DC=carleton,DC=ca"
 $OU2 = "OU=Graduate,OU=UserAccounts,DC=cee,DC=carleton,DC=ca"
 $OU3 = "OU=PhD,OU=UserAccounts,DC=cee,DC=carleton,DC=ca"
@@ -58,7 +58,7 @@ function Add-User{
 	try {
 		New-Item -Path $profileDir -Name $userName -ItemType "Directory" | Out-Null
 		$homeDir = $profileDir+$userName
-		New-ADUser -SamAccountName $userName -Givenname $firstName -Surname $lastName -Name $DisplayName -DisplayName $DisplayName -HomeDirectory $homeDir -Path $OuPath -Accountpassword $securePassword -Description $description -userprincipalname $alias -PasswordNeverExpires 1 -enabled $true
+		New-ADUser -SamAccountName $userName -Givenname $firstName -Surname $lastName -Name $DisplayName -DisplayName $DisplayName -HomeDrive "P:" -HomeDirectory $homeDir -Path $OuPath -Accountpassword $securePassword -Description $description -userprincipalname $alias -PasswordNeverExpires 1 -enabled $true
 	
 		Add-Content $fileName -Value "	Adding user: $userName"
 	} catch [Microsoft.ActiveDirectory.Management.ADIdentityAlreadyExistsException]{
@@ -71,7 +71,7 @@ function Add-User{
 	 catch [Microsoft.ActiveDirectory.Management.ADPasswordComplexityException]{
 		Add-Content $fileName -Value "	Password did not meet complexity requirements for user: $userName"
 #		Write-Host "$($error[0])"
-	}
+	} catch { Add-Content $fileName -Value "$userName  $($error[0])" }
 
 	if ($isNew){
 		$UsersAm = $domain + "\" + $userName
@@ -87,7 +87,9 @@ function Add-User{
 		$currentACL.SetOwner([System.Security.Principal.NTAccount]$userName)
 		$shareName = $userName+'$'
 		#Create shares
-		New-SmbShare -Name $shareName -Path $homeDir -FullAccess $domain+"\"+$userName
+		#New-SmbShare -Name $shareName -Path $homeDir -FullAccess $domain+"\"+$userName
+		icacls $homeDir /inheritance:d /remove:g Users | Out-Null
+		icacls $homeDir /inheritance:d /remove:g Users | Out-Null
 	}
 
 }
@@ -105,7 +107,7 @@ function Load-FromFile{
 #		if (!$checkedName){
 			$userName = $tempName
 #		}
-		$securePassword = $studentNumber | ConvertTo-Securestring -AsPlainText -Force
+		$securePassword = ConvertTo-Securestring -AsPlainText "Cee$studentNumber!" -Force
 		Add-User
 	}
 }
@@ -164,7 +166,7 @@ if ($Option){
 		$lastName = Read-Host "Last Name "
 		$studentNumber = Read-Host "Student Number "
 		$tempName = Read-Host "User Name "
-		$securePassword = $studentNumber | ConvertTo-Securestring -AsPlainText -Force
+		$securePassword = ConvertTo-Securestring -AsPlainText "Cee$studentNumber!" -Force
 		
 #		Check-AddRegUsers -toCheck $tempName
 #		if (!$checkedName){
