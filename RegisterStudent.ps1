@@ -22,6 +22,7 @@ $OU4 = "OU=Staff,OU=UserAccounts,DC=cee,DC=carleton,DC=ca"
 $OU5 = "OU=NoLogin,OU=UserAccounts,DC=cee,DC=carleton,DC=ca"
 $domain = "cee.carleton.ca"
 $isNew = $true
+$Option = "0"
 
 #function Check-AddRegUsers {
 #param($toCheck)
@@ -146,6 +147,7 @@ $users = $ous | ForEach { Get-ADUser -Filter * -SearchBase $_ }
 #$users += Get-ADUser -SearchBase $OU2 -Filter *
 #$users += Get-ADUser -SearchBase $OU3 -Filter *
 #$users += Get-ADUser -SearchBase $OU4 -Filter *
+while ($Option -ne "5"){
 Write-Host "Please enter one of the following options:"
 Write-Host "	1 - Add Regular User"
 Write-Host "	2 - Add Users From File"
@@ -256,4 +258,5 @@ if ($Option){
 	}
 } else {
 	Write-Host "Good-Bye"
+}
 }
