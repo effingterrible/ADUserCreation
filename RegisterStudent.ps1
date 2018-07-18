@@ -14,20 +14,20 @@ $numUser = 0
 $timeStamp = Get-Date -Format FileDateTime
 $currentUser = $env:Username
 $fileName = $currentUser+$timeStamp+".txt"
-#$profileDir = "C:\Users\jdadmin\Desktop\GitHub\ADUserCreation\Users\"
-#$OU1 = "OU=UnderGrad,OU=UserAccounts,DC=TheHeart,DC=local"
-#$OU2 = "OU=Graduate,OU=UserAccounts,DC=TheHeart,DC=local"
-#$OU3 = "OU=PhD,OU=UserAccounts,DC=TheHeart,DC=local"
-#$OU4 = "OU=Staff,OU=UserAccounts,DC=TheHeart,DC=local"
-#$OU5 = "OU=NoLogin,OU=UserAccounts,DC=TheHeart,DC=local"
-#$domain = "TheHeart.local"
-$profileDir = "\\cee.carleton.ca\CeeStorage\"
-$OU1 = "OU=UnderGrad,OU=UserAccounts,DC=cee,DC=carleton,DC=ca"
-$OU2 = "OU=Graduate,OU=UserAccounts,DC=cee,DC=carleton,DC=ca"
-$OU3 = "OU=PhD,OU=UserAccounts,DC=cee,DC=carleton,DC=ca"
-$OU4 = "OU=Staff,OU=UserAccounts,DC=cee,DC=carleton,DC=ca"
-$OU5 = "OU=NoLogin,OU=UserAccounts,DC=cee,DC=carleton,DC=ca"
-$domain = "cee.carleton.ca"
+$profileDir = "C:\Users\jdadmin\Desktop\GitHub\ADUserCreation\Users\"
+$OU1 = "OU=UnderGrad,OU=UserAccounts,DC=TheHeart,DC=local"
+$OU2 = "OU=Graduate,OU=UserAccounts,DC=TheHeart,DC=local"
+$OU3 = "OU=PhD,OU=UserAccounts,DC=TheHeart,DC=local"
+$OU4 = "OU=Staff,OU=UserAccounts,DC=TheHeart,DC=local"
+$OU5 = "OU=NoLogin,OU=UserAccounts,DC=TheHeart,DC=local"
+$domain = "TheHeart.local"
+#$profileDir = "\\cee.carleton.ca\CeeStorage\"
+#$OU1 = "OU=UnderGrad,OU=UserAccounts,DC=cee,DC=carleton,DC=ca"
+#$OU2 = "OU=Graduate,OU=UserAccounts,DC=cee,DC=carleton,DC=ca"
+#$OU3 = "OU=PhD,OU=UserAccounts,DC=cee,DC=carleton,DC=ca"
+#$OU4 = "OU=Staff,OU=UserAccounts,DC=cee,DC=carleton,DC=ca"
+#$OU5 = "OU=NoLogin,OU=UserAccounts,DC=cee,DC=carleton,DC=ca"
+#$domain = "cee.carleton.ca"
 $isNew = $true
 $Option = "0"
 
@@ -63,8 +63,8 @@ function Add-User{
 	if ($type -eq "s"){	$OuPath = $OU4 
 		$description = "Staff"
 	}
+	
 	try {
-		
 		$homeDir = $profileDir+$userName
 		New-ADUser -SamAccountName $userName -Givenname $firstName -Surname $lastName -Name $DisplayName -DisplayName $DisplayName -HomeDrive "P:" -HomeDirectory $homeDir -Path $OuPath -Accountpassword $securePassword -Description $description -userprincipalname $alias -PasswordNeverExpires 1 -enabled $true
 		Add-Content $fileName -Value "	Adding user: $userName"
@@ -76,17 +76,17 @@ function Add-User{
 		Move-ADObject -Identity $toMove -TargetPath $OuPath
 #		Write-Host "$($error[0])"
 	}
-	 catch [Microsoft.ActiveDirectory.Management.ADPasswordComplexityException]{
-		Add-Content $fileName -Value "	Password did not meet complexity requirements for user: $userName"
+#	 catch [Microsoft.ActiveDirectory.Management.ADPasswordComplexityException]{
+#		Add-Content $fileName -Value "	Password did not meet complexity requirements for user: $userName"
 #		Write-Host "$($error[0])"
-	} 
+#	} 
 	catch {
 		Add-Content $fileName -Value "	Username already exists: $userName updating description if needed and moving to new OU" 
 		Set-ADUser -Identity $userName -Description $description
 		$toMove = dsquery user -samid $userName
 		$toMove = $toMove.Replace("`"","")
 		Move-ADObject -Identity $toMove -TargetPath $OuPath
-		Add-Content $fileName -Value "$userName  $($error[0])" 
+		#Add-Content $fileName -Value "$userName  $($error[0])" 
 	}
 
 	try{
@@ -107,7 +107,14 @@ function Add-User{
 		#New-SmbShare -Name $shareName -Path $homeDir -FullAccess $domain+"\"+$userName
 		icacls $homeDir /inheritance:d /remove:g Users | Out-Null
 		icacls $homeDir /inheritance:d /remove:g Users | Out-Null
-	} catch {}
+	} catch {Add-Content $fileName -Value "$userName  $($error[0])"}
+	Clear-Variable "type"
+	Clear-Variable "firstName"
+	Clear-Variable "lastName"
+	Clear-Variable "studentNumber"
+	Clear-Variable "tempName"
+	Clear-Variable "userName"
+	Clear-Variable "securePassword"
 
 }
 
@@ -221,8 +228,8 @@ while ($Option -ne "5"){
 			
 			$opt = Read-Host
 			
-			if ($opt -In 0..$numFiles){ $content = Import-CSV $files[$opt] }
-			else { if (Test-Path -Path $opt){ $content = Import-CSV $opt } }
+			if ($opt -In 0..$numFiles){ $content = Import-CSV $files[$opt] -Encoding UTF8}
+			else { if (Test-Path -Path $opt){ $content = Import-CSV $opt -Encoding UTF8 } }
 
 			if ($content){ Load-FromFile }
 			else { Write-Host "Invalid file name" }
