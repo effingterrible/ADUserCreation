@@ -66,27 +66,31 @@ function Add-User{
 	
 	try {
 		$homeDir = $profileDir+$userName
-		New-ADUser -SamAccountName $userName -Givenname $firstName -Surname $lastName -Name $DisplayName -DisplayName $DisplayName -HomeDrive "P:" -HomeDirectory $homeDir -Path $OuPath -Accountpassword $securePassword -Description $description -userprincipalname $alias -PasswordNeverExpires 1 -enabled $true
+		New-ADUser -SamAccountName $userName -Givenname $firstName -Surname $lastName -Name $userName -DisplayName $DisplayName -HomeDrive "P:" -HomeDirectory $homeDir -Path $OuPath -Accountpassword $securePassword -Description $description -userprincipalname $alias -enabled $true
 		Add-Content $fileName -Value "	Adding user: $userName"
 	} catch [Microsoft.ActiveDirectory.Management.ADIdentityAlreadyExistsException]{
-		
+		Add-Content $fileName -Value "	Username already exists: $userName updating description if needed and moving to new OU"
 		Set-ADUser -Identity $userName -Description $description
 		$toMove = dsquery user -samid $userName
 		$toMove = $toMove.Replace("`"","")
 		Move-ADObject -Identity $toMove -TargetPath $OuPath
 #		Write-Host "$($error[0])"
 	}
-#	 catch [Microsoft.ActiveDirectory.Management.ADPasswordComplexityException]{
-#		Add-Content $fileName -Value "	Password did not meet complexity requirements for user: $userName"
-#		Write-Host "$($error[0])"
-#	} 
+	 catch [Microsoft.ActiveDirectory.Management.ADPasswordComplexityException]{
+		Add-Content $fileName -Value "	Password did not meet complexity requirements for user: $userName OR user duplicated in script, attempting to move OUs."
+		Set-ADUser -Identity $userName -Description $description
+		$toMove = dsquery user -samid $userName
+		$toMove = $toMove.Replace("`"","")
+		Move-ADObject -Identity $toMove -TargetPath $OuPath
+		#Write-Host "$($error[0])"
+	} 
 	catch {
 		Add-Content $fileName -Value "	Username already exists: $userName updating description if needed and moving to new OU" 
 		Set-ADUser -Identity $userName -Description $description
 		$toMove = dsquery user -samid $userName
 		$toMove = $toMove.Replace("`"","")
 		Move-ADObject -Identity $toMove -TargetPath $OuPath
-		#Add-Content $fileName -Value "$userName  $($error[0])" 
+		#Write-Host "$($error[0])"
 	}
 
 	try{
@@ -166,7 +170,7 @@ function Move-ToArchive{
 			}
 		}
 		$progress++
-		Write-Progress -Activity "Archiving" -Status "Progress:" -PercentComplete ($progress/$content.count*100)
+		Write-Progress -Activity "Archiving" -Status "Progress:" -PercentComplete ($progress/$users.count*100)
 	}
 }
 
