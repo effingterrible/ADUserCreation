@@ -24,21 +24,6 @@ $domain = "cee.carleton.ca"
 $isNew = $true
 $Option = "0"
 
-#function Check-AddRegUsers {
-#param($toCheck)
-	
-#	foreach ($user in $users){
-
-#		if ($user -eq $toCheck){
-#			Add-Content -Path $fileName -Value "WARNING: USERNAME ALREADY EXISTS IN ACTIVE DIRECTORY"
-#			$numUser++
-#			$inc = $numUser.ToString()
-#			$checkedName = $firstName + $lastName + $inc
-#			Check-AddRegUsers -toCheck $checkedName
-#		} 
-#	}	 
-#}
-
 function Add-User{
 
 	$DisplayName = $firstName + ' ' + $lastName
@@ -67,7 +52,6 @@ function Add-User{
 		$toMove = dsquery user -samid $userName
 		$toMove = $toMove.Replace("`"","")
 		Move-ADObject -Identity $toMove -TargetPath $OuPath
-#		Write-Host "$($error[0])"
 	}
 	 catch [Microsoft.ActiveDirectory.Management.ADPasswordComplexityException]{
 		Add-Content $fileName -Value "	Password did not meet complexity requirements for user: $userName OR user duplicated in script, attempting to move OUs."
@@ -75,7 +59,6 @@ function Add-User{
 		$toMove = dsquery user -samid $userName
 		$toMove = $toMove.Replace("`"","")
 		Move-ADObject -Identity $toMove -TargetPath $OuPath
-		#Write-Host "$($error[0])"
 	} 
 	catch {
 		Add-Content $fileName -Value "	Username already exists: $userName updating description if needed and moving to new OU" 
@@ -83,7 +66,6 @@ function Add-User{
 		$toMove = dsquery user -samid $userName
 		$toMove = $toMove.Replace("`"","")
 		Move-ADObject -Identity $toMove -TargetPath $OuPath
-		#Write-Host "$($error[0])"
 	}
 
 	try{
@@ -100,8 +82,6 @@ function Add-User{
 		Set-ACL -path $homeDir -AclObject $currentACL
 		$currentACL.SetOwner([System.Security.Principal.NTAccount]$userName)
 		$shareName = $userName+'$'
-		#Create shares
-		#New-SmbShare -Name $shareName -Path $homeDir -FullAccess $domain+"\"+$userName
 		icacls $homeDir /inheritance:d /remove:g Users | Out-Null
 		icacls $homeDir /inheritance:d /remove:g Users | Out-Null
 	} catch {Add-Content $fileName -Value "$userName  $($error[0])"}
@@ -126,10 +106,7 @@ function Load-FromFile{
 		$studentNumber = $_.StudentNumber
 		$tempName = $_.LoginName 
 		$tempName = $tempName -replace '\s',''
-#		Check-AddRegUsers -toCheck $tempName
-#		if (!$checkedName){
-			$userName = $tempName
-#		}
+		$userName = $tempName
 		$securePassword = ConvertTo-Securestring -AsPlainText "Cee$studentNumber!" -Force
 		Add-User
 		$progress++
@@ -195,14 +172,7 @@ while ($Option -ne "5"){
 			$studentNumber = Read-Host "Student Number "
 			$tempName = Read-Host "User Name "
 			$securePassword = ConvertTo-Securestring -AsPlainText "Cee$studentNumber!" -Force
-			
-	#		Check-AddRegUsers -toCheck $tempName
-	#		if (!$checkedName){
-				$userName = $tempName
-	#		}
-			
-	#		if ($userName -ne $tempName){ Write-Host $tempName" is now "$userName }
-			
+			$userName = $tempName	
 			Add-User
 		}
 		if ($Option -eq "2"){
