@@ -14,13 +14,20 @@ $numUser = 0
 $timeStamp = Get-Date -Format FileDateTime
 $currentUser = $env:Username
 $fileName = $currentUser+$timeStamp+".txt"
-$profileDir = "\\cee.carleton.ca\CeeStorage\"
-$OU1 = "OU=UnderGrad,OU=UserAccounts,DC=cee,DC=carleton,DC=ca"
-$OU2 = "OU=Graduate,OU=UserAccounts,DC=cee,DC=carleton,DC=ca"
-$OU3 = "OU=PhD,OU=UserAccounts,DC=cee,DC=carleton,DC=ca"
-$OU4 = "OU=Staff,OU=UserAccounts,DC=cee,DC=carleton,DC=ca"
-$OU5 = "OU=NoLogin,OU=UserAccounts,DC=cee,DC=carleton,DC=ca"
-$domain = "cee.carleton.ca"
+$profileDir = "C:\Users\jdadmin\Desktop\GitHub\ADUserCreation\Users\"
+$OU1 = "OU=UnderGrad,OU=UserAccounts,DC=TheHeart,DC=local"
+$OU2 = "OU=Graduate,OU=UserAccounts,DC=TheHeart,DC=local"
+$OU3 = "OU=PhD,OU=UserAccounts,DC=TheHeart,DC=local"
+$OU4 = "OU=Staff,OU=UserAccounts,DC=TheHeart,DC=local"
+$OU5 = "OU=NoLogin,OU=UserAccounts,DC=TheHeart,DC=local"
+$domain = "TheHeart.local"
+#$profileDir = "\\cee.carleton.ca\CeeStorage\"
+#$OU1 = "OU=UnderGrad,OU=UserAccounts,DC=cee,DC=carleton,DC=ca"
+#$OU2 = "OU=Graduate,OU=UserAccounts,DC=cee,DC=carleton,DC=ca"
+#$OU3 = "OU=PhD,OU=UserAccounts,DC=cee,DC=carleton,DC=ca"
+#$OU4 = "OU=Staff,OU=UserAccounts,DC=cee,DC=carleton,DC=ca"
+#$OU5 = "OU=NoLogin,OU=UserAccounts,DC=cee,DC=carleton,DC=ca"
+#$domain = "cee.carleton.ca"
 $isNew = $true
 $Option = "0"
 
@@ -168,7 +175,8 @@ function Move-ToArchive{
 }
 
 Import-Module ActiveDirectory
-$ous = $OU1,$OU2,$OU3,$OU4
+
+$ous ="OU=UnderGrad,OU=UserAccounts,DC=TheHeart,DC=local","OU=Graduate,OU=UserAccounts,DC=TheHeart,DC=local","OU=PhD,OU=UserAccounts,DC=TheHeart,DC=local","OU=Staff,OU=UserAccounts,DC=TheHeart,DC=local"
 $users = $ous | ForEach { Get-ADUser -Filter * -SearchBase $_ }
 
 Out-File -FilePath $fileName
