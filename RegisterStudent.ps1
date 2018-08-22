@@ -1,3 +1,4 @@
+#Clear screen and variable declaration
 clear
 $type = ""
 $firstName = ""
@@ -24,6 +25,13 @@ $domain = "cee.carleton.ca"
 $isNew = $true
 $Option = "0"
 
+#
+# Function Declarations
+#
+
+#Add user function, checks for account 'type' (student, staff, grad etc), adds user
+#If it exists then updates description to appropriate year
+#Creates user file share and provides proper access rights
 function Add-User{
 
 	$DisplayName = $firstName + ' ' + $lastName
@@ -95,6 +103,7 @@ function Add-User{
 
 }
 
+#Function to load user(s) from specified file
 function Load-FromFile{
 	$progress = 0
 	Write-Host "Loading users from file." 
@@ -107,13 +116,14 @@ function Load-FromFile{
 		$tempName = $_.LoginName 
 		$tempName = $tempName -replace '\s',''
 		$userName = $tempName
-		$securePassword = ConvertTo-Securestring -AsPlainText "Cee$studentNumber!" -Force
+		$securePassword = ConvertTo-Securestring -AsPlainText "C!v!l$studentNumber!" -Force
 		Add-User
 		$progress++
 		Write-Progress -Activity "Adding Users" -Status "Progress:" -PercentComplete ($progress/$content.count*100)
 	}
 }
 
+#Moves users to Archive OU if they exist in AD but not in the list, skips staff.
 function Move-ToArchive{
 	$progress = 0
 	Add-Content $fileName -Value "========= Checking for non returning users ========="
@@ -144,25 +154,60 @@ function Move-ToArchive{
 	}
 }
 
+#
+#'Main' code
+#
+
+#Import AD module to allow script to process Active Directory, limit user search to specific OUs
 Import-Module ActiveDirectory
 $ous = $OU1,$OU2,$OU3,$OU4
 $users = $ous | ForEach { Get-ADUser -Filter * -SearchBase $_ }
 
+#Create log file
 Out-File -FilePath $fileName
 
+#Menu and action code block, will keep this menu up after any processing until the user hits '5'
 while ($Option -ne "5"){
 	Write-Host "Please enter one of the following options:"
-	Write-Host "	1 - Add Regular User"
-	Write-Host "	2 - Add Users From File"
-	Write-Host "	3 - Add Users From File Without Archiving"
+	Write-Host "	1 - Add Users From File Without Archiving"
+	Write-Host "	2 - Add Regular User"
+	Write-Host "	3 - Add Users From File"
 	Write-Host "	4 - Remove old users (Archived over one year)"
 	Write-Host "	5 - Exit"
 
 	$Option = Read-Host "	Choice"
 
 	if ($Option){
-
+		#Load users from file without Archiving, used to handle students who have registered late
+		#Looks at the directory for any CSV files and adds them to a list for the user, user can also specifiy a file location.
 		if ($Option -eq "1"){
+			
+			Add-Content $fileName -Value "========= Loading users from file without Archiving ========="
+			
+			$numFiles = 0
+			$files = Get-ChildItem -Path *.csv
+					
+			Write-Host "Please choose a file, or enter the full path of the file you would like to load."
+			Write-Host "If there are any spaces in the path please use quotation marks around the entire path."
+					
+			if ($files){
+				foreach ($file in $files){
+					Write-Host "["$numFiles"] - "$file
+					$numFiles++
+				}
+			}
+					
+			$opt = Read-Host
+					
+			if ($opt -In 0..$numFiles){ $content = Import-CSV $files[$opt] }
+			else { if (Test-Path -Path $opt){ $content = Import-CSV $opt } }
+			#If the file exists then run the Load-FromFile function
+			if ($content){ Load-FromFile }
+			else { Write-Host "Invalid file name" }
+					
+		}
+		#Creates individual user
+		if ($Option -eq "2"){
 
 			Add-Content $fileName -Value "========= Creating individual user ========="
 
@@ -171,11 +216,12 @@ while ($Option -ne "5"){
 			$lastName = Read-Host "Last Name "
 			$studentNumber = Read-Host "Student Number "
 			$tempName = Read-Host "User Name "
-			$securePassword = ConvertTo-Securestring -AsPlainText "Cee$studentNumber!" -Force
+			$securePassword = ConvertTo-Securestring -AsPlainText "C!v!l$studentNumber!" -Force
 			$userName = $tempName	
 			Add-User
 		}
-		if ($Option -eq "2"){
+		#Creates users from file, will archive if they don't exist in the list but exist in AD
+		if ($Option -eq "3"){
 
 			Add-Content $fileName -Value "========= Loading users from file ========="
 
@@ -203,34 +249,7 @@ while ($Option -ne "5"){
 			Move-ToArchive
 			Write-Host "Archiving completed."
 		}
-		
-		if ($Option -eq "3"){
-			
-			Add-Content $fileName -Value "========= Loading users from file without Archiving ========="
-			
-			$numFiles = 0
-			$files = Get-ChildItem -Path *.csv
-					
-			Write-Host "Please choose a file, or enter the full path of the file you would like to load."
-			Write-Host "If there are any spaces in the path please use quotation marks around the entire path."
-					
-			if ($files){
-				foreach ($file in $files){
-					Write-Host "["$numFiles"] - "$file
-					$numFiles++
-				}
-			}
-					
-			$opt = Read-Host
-					
-			if ($opt -In 0..$numFiles){ $content = Import-CSV $files[$opt] }
-			else { if (Test-Path -Path $opt){ $content = Import-CSV $opt } }
-			
-			if ($content){ Load-FromFile }
-			else { Write-Host "Invalid file name" }
-					
-		}
-
+		#Remove archived user accounts older than 1.5 years
 		if ($Option -eq "4"){
 
 			Add-Content $fileName -Value "========= Removing Archived users over 1 year old ========="
@@ -249,6 +268,7 @@ while ($Option -ne "5"){
 				}
 			} 
 		}
+		#Exit the application
 		if ($Option -eq "5"){
 			Add-Content $fileName -Value "========= No Action Taken ========="
 			Write-Host "Good-Bye"
