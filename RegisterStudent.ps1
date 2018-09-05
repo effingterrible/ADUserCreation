@@ -54,6 +54,7 @@ function Add-User{
 		$homeDir = $profileDir+$userName
 		New-ADUser -SamAccountName $userName -Givenname $firstName -Surname $lastName -Name $userName -DisplayName $DisplayName -HomeDrive "P:" -HomeDirectory $homeDir -Path $OuPath -Accountpassword $securePassword -Description $description -userprincipalname $alias -enabled $true
 		Add-Content $fileName -Value "	Adding user: $userName"
+		Set-ADUser -Identity $UserName -ChangePasswordAtLogon:$True
 	} catch [Microsoft.ActiveDirectory.Management.ADIdentityAlreadyExistsException]{
 		Add-Content $fileName -Value "	Username already exists: $userName updating description if needed and moving to new OU"
 		Set-ADUser -Identity $userName -Description $description
